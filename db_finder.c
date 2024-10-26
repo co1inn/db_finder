@@ -5,27 +5,43 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define SQLITE_HEADER "SQLite format 3"
-#define HEADER_SIZE 16
+#define SQLITE_STRING "SQLite format 3"
 
-void check_func(const char* filepath){
+void check_func(const char* filepath) {
     FILE *file = fopen(filepath, "rb");
     if (file == NULL) {
         perror("fopen");
         return;
     }
 
-    char header[HEADER_SIZE + 1] = {0};
-    size_t read_bytes = fread(header, 1, HEADER_SIZE, file);
+    //determine file size
+    fseek(file, 0, SEEK_END);
+    long filesize = ftell(file);
+    fseek(file, 0, SEEK_SET); 
+
+    //allocate memory for file contents
+    char *buffer = (char*)malloc(filesize + 1);
+    if (buffer == NULL) {
+        perror("malloc");
+        fclose(file);
+        return;
+    }
+
+    //read the entire file into the buffer
+    size_t read_bytes = fread(buffer, 1, filesize, file);
+    buffer[read_bytes] = '\0'; //null-terminate the string
     fclose(file);
 
-    if (read_bytes == HEADER_SIZE && strncmp(header, SQLITE_HEADER, HEADER_SIZE) == 0) {
+    //strstr to find the string in the file
+    if (strstr(buffer, SQLITE_STRING) != NULL) {
         printf("%s\n", filepath);
     }
+
+    free(buffer);
 }
 
-void dir_traversal(const char* directory){
-        struct dirent *entry;
+void dir_traversal(const char* directory) {
+    struct dirent *entry;
     DIR *dp = opendir(directory);
 
     if (dp == NULL) {
