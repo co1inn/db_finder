@@ -1,51 +1,48 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <dirent.h>
-#include <sys/stat.h>
-#include <unistd.h>
+#include <stdio.h>      //for standard i/o functions
+#include <stdlib.h>     //for memory allocation
+#include <string.h>     //for string handling
+#include <dirent.h>     //for directory entry functions
+#include <sys/stat.h>   //for file status functions
+#include <unistd.h>     //for posix api
 
-#define SQLITE_STRING "SQLite format 3"
+#define SQLITE_STRING "SQLite format 3"  //string to search for
+#define PATH_MAX 4096  //maximum path length
 
 void check_func(const char* filepath) {
-    FILE *file = fopen(filepath, "rb");
+    FILE *file = fopen(filepath, "rb"); //open the file
     if (file == NULL) {
-        perror("fopen");
+        perror("fopen"); //error opening file
         return;
     }
 
-    //determine file size
-    fseek(file, 0, SEEK_END);
-    long filesize = ftell(file);
-    fseek(file, 0, SEEK_SET); 
+    fseek(file, 0, SEEK_END); //move pointer to end
+    long filesize = ftell(file); //get file size
+    fseek(file, 0, SEEK_SET); //reset pointer
 
-    //allocate memory for file contents
-    char *buffer = (char*)malloc(filesize + 1);
+    char *buffer = (char*)malloc(filesize + 1); //allocate memory
     if (buffer == NULL) {
-        perror("malloc");
-        fclose(file);
+        perror("malloc"); //error allocating memory
+        fclose(file); //close file
         return;
     }
 
-    //read the entire file into the buffer
-    size_t read_bytes = fread(buffer, 1, filesize, file);
-    buffer[read_bytes] = '\0'; //null-terminate the string
-    fclose(file);
+    size_t read_bytes = fread(buffer, 1, filesize, file); //read file
+    buffer[read_bytes] = '\0'; //null-terminate
+    fclose(file); //close file
 
-    //strstr to find the string in the file
     if (strstr(buffer, SQLITE_STRING) != NULL) {
-        printf("%s\n", filepath);
+        printf("found in: %s\n", filepath); //print path if found
     }
 
-    free(buffer);
+    free(buffer); //free memory
 }
 
 void dir_traversal(const char* directory) {
     struct dirent *entry;
-    DIR *dp = opendir(directory);
+    DIR *dp = opendir(directory); //open directory
 
     if (dp == NULL) {
-        perror("opendir");
+        perror("opendir"); //error opening directory
         return;
     }
 
@@ -53,32 +50,32 @@ void dir_traversal(const char* directory) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
             continue;
 
-        char fullpath[1024];
+        char fullpath[PATH_MAX]; //full path buffer
         snprintf(fullpath, sizeof(fullpath), "%s/%s", directory, entry->d_name);
 
         struct stat path_stat;
-        if (stat(fullpath, &path_stat) == -1) {
-            perror("stat");
+        if (lstat(fullpath, &path_stat) == -1) {
+            perror("lstat"); //error getting status
             continue;
         }
 
         if (S_ISDIR(path_stat.st_mode)) {
-            dir_traversal(fullpath);
+            dir_traversal(fullpath); //traverse directories
         } else if (S_ISREG(path_stat.st_mode)) {
-            check_func(fullpath);
+            check_func(fullpath); //check regular files
         }
     }
 
-    closedir(dp);
+    closedir(dp); //close directory
 }
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
-        fprintf(stderr, "usage: %s <directory>\n", argv[0]);
-        return EXIT_FAILURE;
+        fprintf(stderr, "usage: %s <directory>\n", argv[0]); //usage message
+        return EXIT_FAILURE; //exit failure
     }
 
-    dir_traversal(argv[1]);
+    dir_traversal(argv[1]); //start traversal
 
-    return EXIT_SUCCESS;
+    return EXIT_SUCCESS; //exit success
 }
